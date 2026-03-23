@@ -31,7 +31,7 @@ type ProjectConfig struct {
 	// package config resolution order.
 	DefaultPackageConfig PackageConfig `toml:"default-package-config,omitempty" json:"defaultPackageConfig,omitempty" jsonschema:"title=Default package config,description=Project-wide default applied to all binary packages before group and component overrides"`
 
-	// Definitions of package groups for publish-time routing of binary packages.
+	// Definitions of package groups with shared configuration.
 	PackageGroups map[string]PackageGroupConfig `toml:"package-groups,omitempty" json:"packageGroups,omitempty" jsonschema:"title=Package groups,description=Mapping of package group names to configurations for publish-time routing"`
 
 	// Root config file path; not serialized.
@@ -58,6 +58,32 @@ func (cfg *ProjectConfig) Validate() error {
 	err := validator.New().Struct(cfg)
 	if err != nil {
 		return fmt.Errorf("config error:\n%w", err)
+	}
+
+	if err := validatePackageGroupMembership(cfg.PackageGroups); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validatePackageGroupMembership checks that no binary package name appears in more than one
+// package group. A package should belong to exactly one group to keep routing unambiguous.
+func validatePackageGroupMembership(groups map[string]PackageGroupConfig) error {
+	// Track which group each package name was first seen in.
+	seenIn := make(map[string]string, len(groups))
+
+	for groupName, group := range groups {
+		for _, pkg := range group.Packages {
+			if firstGroup, already := seenIn[pkg]; already {
+				return fmt.Errorf(
+					"package %#q appears in both package-group %#q and %#q; a package may only belong to one group",
+					pkg, firstGroup, groupName,
+				)
+			}
+
+			seenIn[pkg] = groupName
+		}
 	}
 
 	return nil

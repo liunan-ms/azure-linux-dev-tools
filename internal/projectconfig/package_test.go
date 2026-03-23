@@ -17,31 +17,22 @@ func TestPackageGroupConfig_Validate(t *testing.T) {
 		assert.NoError(t, group.Validate())
 	})
 
-	t.Run("group with valid patterns is valid", func(t *testing.T) {
+	t.Run("group with packages is valid", func(t *testing.T) {
 		group := projectconfig.PackageGroupConfig{
-			Description:     "development packages",
-			PackagePatterns: []string{"*-devel", "python3-*", "curl"},
+			Description: "development packages",
+			Packages:    []string{"curl-devel", "python3-requests", "curl"},
 		}
 		assert.NoError(t, group.Validate())
 	})
 
-	t.Run("empty pattern string is invalid", func(t *testing.T) {
+	t.Run("empty package name is invalid", func(t *testing.T) {
 		group := projectconfig.PackageGroupConfig{
-			PackagePatterns: []string{"*-devel", ""},
+			Packages: []string{"curl-devel", ""},
 		}
 		err := group.Validate()
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "package-patterns[1]")
+		assert.Contains(t, err.Error(), "packages[1]")
 		assert.Contains(t, err.Error(), "must not be empty")
-	})
-
-	t.Run("malformed glob is invalid", func(t *testing.T) {
-		group := projectconfig.PackageGroupConfig{
-			PackagePatterns: []string{"[invalid"},
-		}
-		err := group.Validate()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "not a valid glob")
 	})
 }
 
@@ -86,13 +77,13 @@ func TestResolvePackageConfig(t *testing.T) {
 
 	baseProj := makeProj(map[string]projectconfig.PackageGroupConfig{
 		"debug-packages": {
-			PackagePatterns: []string{"*-debuginfo", "*-debugsource"},
+			Packages: []string{"gcc-debuginfo", "curl-debuginfo", "curl-debugsource"},
 			DefaultPackageConfig: projectconfig.PackageConfig{
 				Publish: projectconfig.PackagePublishConfig{Channel: "none"},
 			},
 		},
 		"build-time-deps": {
-			PackagePatterns: []string{"*-devel", "*-static"},
+			Packages: []string{"curl-devel", "curl-static", "gcc-devel"},
 			DefaultPackageConfig: projectconfig.PackageConfig{
 				Publish: projectconfig.PackagePublishConfig{Channel: "build"},
 			},
@@ -107,17 +98,17 @@ func TestResolvePackageConfig(t *testing.T) {
 		expectedChannel string
 	}{
 		{
-			name:            "unmatched package returns zero channel",
+			name:            "package not in any group returns zero channel",
 			pkgName:         "curl",
 			expectedChannel: "",
 		},
 		{
-			name:            "devel package matched by group pattern",
+			name:            "package listed in build-time-deps group gets build channel",
 			pkgName:         "curl-devel",
 			expectedChannel: "build",
 		},
 		{
-			name:            "debuginfo package matched by group pattern",
+			name:            "package listed in debug-packages group gets none channel",
 			pkgName:         "gcc-debuginfo",
 			expectedChannel: "none",
 		},
@@ -130,7 +121,7 @@ func TestResolvePackageConfig(t *testing.T) {
 			expectedChannel: "base",
 		},
 		{
-			name:    "component default applies when no group matches",
+			name:    "component default applies when no group contains the package",
 			pkgName: "curl",
 			compDefault: projectconfig.PackageConfig{
 				Publish: projectconfig.PackagePublishConfig{Channel: "none"},
@@ -157,7 +148,7 @@ func TestResolvePackageConfig(t *testing.T) {
 			expectedChannel: "base",
 		},
 		{
-			name:    "non-matching exact package entry does not affect result",
+			name:    "unrelated exact package entry does not affect result",
 			pkgName: "curl-devel",
 			compPackages: map[string]projectconfig.PackageConfig{
 				"curl": {Publish: projectconfig.PackagePublishConfig{Channel: "base"}},
@@ -180,19 +171,12 @@ func TestResolvePackageConfig(t *testing.T) {
 		})
 	}
 
-	t.Run("groups applied in alphabetical order - later-named overrides earlier-named", func(t *testing.T) {
-		// "zzz-group" is alphabetically later than "aaa-group", so its channel wins.
+	t.Run("package group default-package-config is applied", func(t *testing.T) {
 		proj := makeProj(map[string]projectconfig.PackageGroupConfig{
-			"aaa-group": {
-				PackagePatterns: []string{"*-devel"},
+			"my-group": {
+				Packages: []string{"curl-devel"},
 				DefaultPackageConfig: projectconfig.PackageConfig{
 					Publish: projectconfig.PackagePublishConfig{Channel: "build"},
-				},
-			},
-			"zzz-group": {
-				PackagePatterns: []string{"curl-*"},
-				DefaultPackageConfig: projectconfig.PackageConfig{
-					Publish: projectconfig.PackagePublishConfig{Channel: "base"},
 				},
 			},
 		})
@@ -200,7 +184,7 @@ func TestResolvePackageConfig(t *testing.T) {
 		comp := &projectconfig.ComponentConfig{Name: "curl"}
 		got, err := projectconfig.ResolvePackageConfig("curl-devel", comp, proj)
 		require.NoError(t, err)
-		assert.Equal(t, "base", got.Publish.Channel)
+		assert.Equal(t, "build", got.Publish.Channel)
 	})
 
 	t.Run("empty project config returns zero-value PackageConfig", func(t *testing.T) {
@@ -231,7 +215,7 @@ func TestResolvePackageConfig(t *testing.T) {
 		}
 		proj.PackageGroups = map[string]projectconfig.PackageGroupConfig{
 			"debug-packages": {
-				PackagePatterns: []string{"*-debuginfo"},
+				Packages: []string{"gcc-debuginfo"},
 				DefaultPackageConfig: projectconfig.PackageConfig{
 					Publish: projectconfig.PackagePublishConfig{Channel: "none"},
 				},

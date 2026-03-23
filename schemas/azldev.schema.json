@@ -340,7 +340,7 @@
           },
           "type": "object",
           "title": "Package groups",
-          "description": "Definitions of package groups for publish-time routing"
+          "description": "Definitions of package groups for shared binary package configuration"
         }
       },
       "additionalProperties": false,
@@ -539,11 +539,6 @@
     },
     "PackageConfig": {
       "properties": {
-        "description": {
-          "type": "string",
-          "title": "Description",
-          "description": "Human-readable note about this package's configuration"
-        },
         "publish": {
           "$ref": "#/$defs/PackagePublishConfig",
           "title": "Publish settings",
@@ -560,18 +555,18 @@
           "title": "Description",
           "description": "Human-readable description of this package group"
         },
-        "package-patterns": {
+        "packages": {
           "items": {
             "type": "string"
           },
           "type": "array",
-          "title": "Package patterns",
-          "description": "Glob patterns matched against binary package names to determine group membership"
+          "title": "Packages",
+          "description": "Explicit list of binary package names that are members of this group"
         },
         "default-package-config": {
           "$ref": "#/$defs/PackageConfig",
           "title": "Default package config",
-          "description": "Configuration inherited by all packages matched by this group"
+          "description": "Configuration inherited by all packages in this group"
         }
       },
       "additionalProperties": false,

@@ -47,8 +47,9 @@ type ConfigFile struct {
 	// package-group or component-level config is considered.
 	DefaultPackageConfig *PackageConfig `toml:"default-package-config,omitempty" jsonschema:"title=Default package config,description=Project-wide default applied to all binary packages before group and component overrides"`
 
-	// Definitions of package groups for publish-time routing of binary packages.
-	PackageGroups map[string]PackageGroupConfig `toml:"package-groups,omitempty" jsonschema:"title=Package groups,description=Definitions of package groups for publish-time routing"`
+	// Definitions of package groups. Groups allow shared configuration
+	// to be applied to sets of binary packages.
+	PackageGroups map[string]PackageGroupConfig `toml:"package-groups,omitempty" jsonschema:"title=Package groups,description=Definitions of package groups for shared binary package configuration"`
 
 	// Internal fields used to track the origin of the config file; `dir` is the directory
 	// that the config file's relative paths are based from.

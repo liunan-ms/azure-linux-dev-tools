@@ -12,7 +12,7 @@ The `[project]` section defines metadata and directory layout for an azldev proj
 | Output directory | `output-dir` | string | No | Path to the directory where final build outputs (RPMs, SRPMs) are placed (relative to this config file) |
 | Default distro | `default-distro` | [DistroReference](distros.md#distro-references) | No | The default distro and version to use when building components |
 | Default package config | `default-package-config` | [PackageConfig](package-groups.md#package-config) | No | Project-wide default applied to every binary package before group and component overrides |
-| Package groups | `package-groups` | map of string → [PackageGroupConfig](package-groups.md) | No | Named groups of binary packages with shared publish configuration |
+| Package groups | `package-groups` | map of string → [PackageGroupConfig](package-groups.md) | No | Named groups of binary packages with shared configuration |
 
 ## Directory Paths
 
@@ -43,32 +43,16 @@ The most common use is to set a project-wide default publish channel:
 
 ```toml
 [default-package-config.publish]
-channel = "base"
+channel = "rpm-base"
 ```
 
 See [Package Groups](package-groups.md#resolution-order) for the full resolution order.
 
 ## Package Groups
 
-The `[package-groups.<name>]` section defines named groups of binary packages matched by name glob patterns. Each group can supply a `default-package-config` that is applied to all packages whose name matches any of its patterns.
+The `[package-groups.<name>]` section defines named groups of binary packages. Each group lists its members explicitly in the `packages` field and provides a `default-package-config` that is applied to all listed packages.
 
-This is commonly used to route different types of packages (e.g., `-devel`, `-debuginfo`) to different publish channels:
-
-```toml
-[package-groups.devel-packages]
-description = "Development subpackages"
-package-patterns = ["*-devel", "*-static"]
-
-[package-groups.devel-packages.default-package-config.publish]
-channel = "devel"
-
-[package-groups.debug-packages]
-description = "Debug packages — not published"
-package-patterns = ["*-debuginfo", "*-debugsource"]
-
-[package-groups.debug-packages.default-package-config.publish]
-channel = "none"
-```
+This is currently used to route different types of packages (e.g., `-devel`, `-debuginfo`) to different publish channels, though groups can also carry other future configuration.
 
 See [Package Groups](package-groups.md) for the full field reference.
 
@@ -87,7 +71,7 @@ channel = "base"
 
 [package-groups.devel-packages]
 description = "Development subpackages"
-package-patterns = ["*-devel", "*-static", "*-headers"]
+packages = ["curl-devel", "curl-static", "wget2-devel"]
 
 [package-groups.devel-packages.default-package-config.publish]
 channel = "devel"

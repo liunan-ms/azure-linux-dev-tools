@@ -194,7 +194,7 @@ hints = { expensive = true }
 
 ## Package Configuration
 
-Components can customize the publish configuration for the binary packages they produce. There are two fields for this, applied at different levels of specificity.
+Components can customize the configuration for the binary packages they produce. There are two fields for this, applied at different levels of specificity.
 
 ### Default Package Config
 
@@ -202,7 +202,7 @@ The `default-package-config` field provides a component-level default that appli
 
 ```toml
 [components.curl.default-package-config.publish]
-channel = "base"
+channel = "rpm-base"
 ```
 
 ### Per-Package Overrides
@@ -212,7 +212,7 @@ The `[components.<name>.packages.<pkgname>]` map lets you override config for a 
 ```toml
 # Override just one subpackage
 [components.curl.packages.curl-devel.publish]
-channel = "devel"
+channel = "rpm-devel"
 ```
 
 ### Resolution Order
@@ -220,11 +220,11 @@ channel = "devel"
 For each binary package produced by a component, the effective config is assembled in this order (later layers win):
 
 1. Project `default-package-config`
-2. Matching `package-groups`, in alphabetical group name order
+2. Package group containing this package name (if any)
 3. Component `default-package-config`
 4. Component `packages.<exact-name>` (highest priority)
 
-See [Package Groups](package-groups.md#resolution-order) for the full details.
+See [Package Groups](package-groups.md) for the full field reference and a complete example.
 
 ### Example
 
@@ -233,14 +233,14 @@ See [Package Groups](package-groups.md#resolution-order) for the full details.
 
 # Route all curl packages to "base" by default ...
 [components.curl.default-package-config.publish]
-channel = "base"
+channel = "rpm-base"
 
 # ... but put curl-devel in the "devel" channel
-[components.curl.packages.curl-devel.publish]
-channel = "devel"
+[components.curl.packages.libcurl-devel.publish]
+channel = "rpm-devel"
 
 # Don't publish the minimal build at all
-[components.curl.packages.curl-minimal.publish]
+[components.curl.packages.libcurl-minimal.publish]
 channel = "none"
 ```
 

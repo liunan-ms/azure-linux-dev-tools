@@ -46,7 +46,7 @@ type RPMResult struct {
 	// Path is the absolute path to the RPM file.
 	Path string `json:"path" table:"Path"`
 
-	// PackageName is the binary package name extracted from the RPM filename (e.g., "curl-devel").
+	// PackageName is the binary package name extracted from the RPM header tag (e.g., "libcurl-devel").
 	PackageName string `json:"packageName" table:"Package"`
 
 	// Channel is the resolved publish channel from project config.
@@ -425,7 +425,7 @@ func resolveRPMResults(
 // packageNameFromRPM extracts the binary package name from an RPM file by reading
 // its headers. Reading the Name tag directly from the RPM metadata is authoritative and
 // handles all valid package names regardless of naming conventions.
-func packageNameFromRPM(fs opctx.FS, rpmPath string) (pkgName string, err error) {
+func packageNameFromRPM(fs opctx.FS, rpmPath string) (string, error) {
 	rpmFile, err := fs.Open(rpmPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open RPM %#q:\n%w", rpmPath, err)

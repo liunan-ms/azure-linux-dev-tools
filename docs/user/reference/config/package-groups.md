@@ -1,36 +1,32 @@
 # Package Groups
 
-Package groups let you apply shared publish configuration to sets of binary packages matched by name glob patterns. They are defined under `[package-groups.<name>]` in the TOML configuration.
+Package groups let you apply shared configuration to named sets of binary packages. They are defined under `[package-groups.<name>]` in the TOML configuration.
 
-Package groups are evaluated at build time, after the binary RPMs are produced, to determine the publish channel for each package. This is analogous to how [component groups](component-groups.md) apply shared configuration to components at config-load time.
+Package groups are evaluated at build time, after the binary RPMs are produced. They are analogous to [component groups](component-groups.md), which apply shared configuration to sets of components.
 
 ## Field Reference
 
 | Field | TOML Key | Type | Required | Description |
 |-------|----------|------|----------|-------------|
 | Description | `description` | string | No | Human-readable description of this group |
-| Package patterns | `package-patterns` | string array | No | Glob patterns matched against binary package names to determine group membership |
-| Default package config | `default-package-config` | [PackageConfig](#package-config) | No | Configuration inherited by all packages whose name matches any pattern in this group |
+| Packages | `packages` | string array | No | Explicit list of binary package names that belong to this group |
+| Default package config | `default-package-config` | [PackageConfig](#package-config) | No | Configuration inherited by all packages listed in this group |
 
-## Package Patterns
+## Packages
 
-The `package-patterns` field accepts glob patterns following [`path.Match`](https://pkg.go.dev/path#Match) syntax:
-
-- `*` matches any sequence of non-separator characters
-- `?` matches any single non-separator character
-- `[abc]` matches any character in the set
-
-A binary package is a member of a group if its name matches **any** pattern in `package-patterns`.
+The `packages` field is an explicit list of binary package names (as they appear in the RPM `Name` tag) that belong to this group. Membership is determined by exact name match — no glob patterns or wildcards are supported.
 
 ```toml
 [package-groups.devel-packages]
-description = "All -devel subpackages"
-package-patterns = ["*-devel"]
+description = "Development subpackages"
+packages = ["libcurl-devel", "curl-static", "wget2-devel"]
 
-[package-groups.python-packages]
-description = "Python 3 packages"
-package-patterns = ["python3-*", "python3"]
+[package-groups.debug-packages]
+description = "Debug info and source packages"
+packages = ["curl-debuginfo", "curl-debugsource", "wget2-debuginfo"]
 ```
+
+> **Note:** A package name may appear in at most one group. Listing the same name in two groups produces a validation error.
 
 ## Package Config
 
@@ -40,48 +36,53 @@ The `[package-groups.<name>.default-package-config]` section defines the configu
 
 | Field | TOML Key | Type | Required | Description |
 |-------|----------|------|----------|-------------|
-| Description | `description` | string | No | Human-readable note about this package's configuration |
+
 | Publish settings | `publish` | [PublishConfig](#publish-config) | No | Publishing settings for matched packages |
 
 ### Publish Config
 
 | Field | TOML Key | Type | Required | Description |
 |-------|----------|------|----------|-------------|
-| Channel | `channel` | string | No | Publish channel for this package. Use `"none"` to skip publishing entirely. |
+| Channel | `channel` | string | No | Publish channel for this package. **Use `"none"` to skip publishing entirely.** |
 
 ## Resolution Order
 
 When determining the effective config for a binary package, azldev applies config layers in this order — later layers override earlier ones:
 
 1. **Project `default-package-config`** — lowest priority; applies to all packages in the project
-2. **Package groups** — all groups whose `package-patterns` match the package name, applied in **alphabetical order by group name** (later-named groups win)
+2. **Package group** — the group (if any) whose `packages` list contains the package name
 3. **Component `default-package-config`** — applies to all packages produced by that component
 4. **Component `packages.<name>`** — highest priority; exact per-package override
 
-> **Tip:** Group names beginning with letters near the end of the alphabet take precedence over earlier names. Prefix group names with a priority hint (e.g., `10-base`, `20-security`) if you need explicit ordering.
+> **Note:** Each package name may appear in at most one group. Listing the same name in two groups produces a validation error.
 
 ## Example
 
 ```toml
 # Set a project-wide default channel
 [default-package-config.publish]
-channel = "base"
+channel = "rpm-base"
 
-# Route all -devel packages to the "devel" channel
 [package-groups.devel-packages]
 description = "Development subpackages"
-package-patterns = ["*-devel", "*-static", "*-headers"]
+packages = ["libcurl-devel", "curl-static", "wget2-devel"]
 
 [package-groups.devel-packages.default-package-config.publish]
-channel = "devel"
+channel = "rpm-build-only"
 
-# Exclude debug packages from publishing entirely
 [package-groups.debug-packages]
-description = "Debug info packages — not published"
-package-patterns = ["*-debuginfo", "*-debugsource"]
+description = "Debug info and source"
+packages = [
+    "libcurl-debuginfo",
+    "libcurl-minimal-debuginfo",
+    "curl-debugsource",
+    "wget2-debuginfo",
+    "wget2-debugsource",
+    "wget2-libs-debuginfo"
+]
 
 [package-groups.debug-packages.default-package-config.publish]
-channel = "none"
+channel = "rpm-debug"
 ```
 
 ## Related Resources
