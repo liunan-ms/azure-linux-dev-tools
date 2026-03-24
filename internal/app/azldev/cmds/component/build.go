@@ -44,7 +44,7 @@ type ComponentBuildOptions struct {
 // RPMResult encapsulates a single binary RPM produced by a component build,
 // together with the resolved publish channel for that package.
 type RPMResult struct {
-	// Path is the absolute path to the RPM file.
+	// Path is the absolute path to the RPM file in the build output directory.
 	Path string `json:"path" table:"Path"`
 
 	// PackageName is the binary package name extracted from the RPM header tag (e.g., "libcurl-devel").
@@ -281,10 +281,27 @@ func buildComponentUsingBuilder(
 	// Compose the path to the output dir.
 	outputDir := env.OutputDir()
 
-	// Make sure we have a final output dir.
+	// All binary RPMs land in out/rpms/ so they are kept separate from SRPMs
+	// and other build artifacts in out/.
+	rpmsDir := filepath.Join(outputDir, "rpms")
+
+	// SRPMs land in out/srpms/.
+	srpmsDir := filepath.Join(outputDir, "srpms")
+
+	// Make sure all output directories exist.
 	err = fileutils.MkdirAll(env.FS(), outputDir)
 	if err != nil {
 		return results, fmt.Errorf("failed to ensure dir %q exists: %w", outputDir, err)
+	}
+
+	err = fileutils.MkdirAll(env.FS(), rpmsDir)
+	if err != nil {
+		return results, fmt.Errorf("failed to ensure dir %q exists: %w", rpmsDir, err)
+	}
+
+	err = fileutils.MkdirAll(env.FS(), srpmsDir)
+	if err != nil {
+		return results, fmt.Errorf("failed to ensure dir %q exists: %w", srpmsDir, err)
 	}
 
 	buildEvent := env.StartEvent("Building packages with mock", "component", component.GetName())
@@ -295,7 +312,7 @@ func buildComponentUsingBuilder(
 	// Build the SRPM.
 	//
 
-	outputSourcePackagePath, err := builder.BuildSourcePackage(env, component, localRepoPaths, outputDir)
+	outputSourcePackagePath, err := builder.BuildSourcePackage(env, component, localRepoPaths, srpmsDir)
 	if err != nil {
 		return results, fmt.Errorf("failed to build SRPM for %q:\n%w", component.GetName(), err)
 	}
@@ -314,7 +331,7 @@ func buildComponentUsingBuilder(
 	//
 
 	results.RPMPaths, err = builder.BuildBinaryPackage(
-		env, component, outputSourcePackagePath, localRepoPaths, outputDir, noCheck,
+		env, component, outputSourcePackagePath, localRepoPaths, rpmsDir, noCheck,
 	)
 	if err != nil {
 		return results, fmt.Errorf("failed to build RPM for %q: %w", component.GetName(), err)
@@ -324,6 +341,17 @@ func buildComponentUsingBuilder(
 	results.RPMs, err = resolveRPMResults(env.FS(), results.RPMPaths, env.Config(), component.GetConfig())
 	if err != nil {
 		return results, fmt.Errorf("failed to resolve publish channels for %q:\n%w", component.GetName(), err)
+	}
+
+	// Move RPMs with a channel into out/rpms/<channel>/, leaving unconfigured ones in out/rpms/.
+	if err = placeRPMsByChannel(env, results.RPMs, rpmsDir); err != nil {
+		return results, fmt.Errorf("failed to place RPMs by channel for %q:\n%w", component.GetName(), err)
+	}
+
+	// Sync RPMPaths to the final (possibly moved) locations.
+	results.RPMPaths = make([]string, len(results.RPMs))
+	for rpmIdx, rpm := range results.RPMs {
+		results.RPMPaths[rpmIdx] = rpm.Path
 	}
 
 	// Populate the parallel Channels slice for table display.
@@ -341,6 +369,34 @@ func buildComponentUsingBuilder(
 	}
 
 	return results, nil
+}
+
+// placeRPMsByChannel moves each RPM with a configured channel from its initial location in
+// rpmsDir to a channel-specific subdirectory rpmsDir/<channel>/.
+// RPMs whose channel is empty or the reserved value "none" remain in rpmsDir.
+// [RPMResult.Path] is updated in-place to reflect the final location of each RPM.
+func placeRPMsByChannel(env *azldev.Env, rpmResults []RPMResult, rpmsDir string) error {
+	for rpmIdx, rpm := range rpmResults {
+		if rpm.Channel == "" || rpm.Channel == "none" {
+			continue
+		}
+
+		channelDir := filepath.Join(rpmsDir, rpm.Channel)
+
+		if err := fileutils.MkdirAll(env.FS(), channelDir); err != nil {
+			return fmt.Errorf("failed to create channel directory %#q:\n%w", channelDir, err)
+		}
+
+		destPath := filepath.Join(channelDir, filepath.Base(rpm.Path))
+
+		if err := env.FS().Rename(rpm.Path, destPath); err != nil {
+			return fmt.Errorf("failed to move package %#q to channel %#q:\n%w", rpm.PackageName, rpm.Channel, err)
+		}
+
+		rpmResults[rpmIdx].Path = destPath
+	}
+
+	return nil
 }
 
 // validateBuildOptions validates the build options before any work is done.
