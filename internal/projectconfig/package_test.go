@@ -11,6 +11,75 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestPackagePublishConfig_Validate(t *testing.T) {
+	t.Parallel()
+
+	validCases := []struct {
+		name    string
+		channel string
+	}{
+		{name: "empty channel is valid (means inherit)", channel: ""},
+		{name: "simple channel name", channel: "base"},
+		{name: "channel with hyphens", channel: "rpm-base"},
+		{name: "channel with underscores", channel: "rpm_base"},
+		{name: "reserved none value", channel: "none"},
+		{name: "channel starting with dot", channel: ".hidden"},
+		{name: "channel with internal dots", channel: "foo..bar"},
+	}
+
+	for _, testCase := range validCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := projectconfig.PackagePublishConfig{Channel: testCase.channel}
+			assert.NoError(t, cfg.Validate())
+		})
+	}
+
+	invalidCases := []struct {
+		name        string
+		channel     string
+		errContains string
+	}{
+		{name: "absolute path", channel: "/etc/passwd", errContains: "path separators"},
+		{name: "traversal with slash", channel: "../secret", errContains: "path separators"},
+		{name: "multi-segment path", channel: "foo/bar", errContains: "path separators"},
+		{name: "backslash separator", channel: `foo\bar`, errContains: "path separators"},
+		{name: "dot traversal", channel: "..", errContains: "not a valid path component"},
+		{name: "single dot", channel: ".", errContains: "not a valid path component"},
+	}
+
+	for _, testCase := range invalidCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := projectconfig.PackagePublishConfig{Channel: testCase.channel}
+			err := cfg.Validate()
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), testCase.errContains)
+		})
+	}
+}
+
+func TestPackageGroupConfig_Validate_InvalidChannel(t *testing.T) {
+	t.Parallel()
+
+	t.Run("traversal channel in group default config is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		group := projectconfig.PackageGroupConfig{
+			Packages: []string{"curl"},
+			DefaultPackageConfig: projectconfig.PackageConfig{
+				Publish: projectconfig.PackagePublishConfig{Channel: "../escape"},
+			},
+		}
+		err := group.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "default-package-config")
+		assert.Contains(t, err.Error(), "path separators")
+	})
+}
+
 func TestPackageGroupConfig_Validate(t *testing.T) {
 	t.Run("empty group is valid", func(t *testing.T) {
 		group := projectconfig.PackageGroupConfig{}

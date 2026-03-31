@@ -344,7 +344,7 @@ func buildComponentUsingBuilder(
 	}
 
 	// Move RPMs with a channel into out/rpms/<channel>/, leaving unconfigured ones in out/rpms/.
-	if err = placeRPMsByChannel(env, results.RPMs, rpmsDir); err != nil {
+	if err = PlaceRPMsByChannel(env, results.RPMs, rpmsDir); err != nil {
 		return results, fmt.Errorf("failed to place RPMs by channel for %q:\n%w", component.GetName(), err)
 	}
 
@@ -371,11 +371,11 @@ func buildComponentUsingBuilder(
 	return results, nil
 }
 
-// placeRPMsByChannel moves each RPM with a configured channel from its initial location in
+// PlaceRPMsByChannel moves each RPM with a configured channel from its initial location in
 // rpmsDir to a channel-specific subdirectory rpmsDir/<channel>/.
 // RPMs whose channel is empty or the reserved value "none" remain in rpmsDir.
 // [RPMResult.Path] is updated in-place to reflect the final location of each RPM.
-func placeRPMsByChannel(env *azldev.Env, rpmResults []RPMResult, rpmsDir string) error {
+func PlaceRPMsByChannel(env *azldev.Env, rpmResults []RPMResult, rpmsDir string) error {
 	for rpmIdx, rpm := range rpmResults {
 		if rpm.Channel == "" || rpm.Channel == "none" {
 			continue

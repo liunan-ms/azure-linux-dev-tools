@@ -75,6 +75,13 @@ func (f ConfigFile) Validate() error {
 		return fmt.Errorf("config file error:\n%w", err)
 	}
 
+	// Validate the project-wide default package config.
+	if f.DefaultPackageConfig != nil {
+		if err := f.DefaultPackageConfig.Validate(); err != nil {
+			return fmt.Errorf("invalid default-package-config:\n%w", err)
+		}
+	}
+
 	// Validate package group configurations.
 	for groupName, group := range f.PackageGroups {
 		if err := group.Validate(); err != nil {
@@ -95,6 +102,17 @@ func (f ConfigFile) Validate() error {
 		err := component.Build.Validate()
 		if err != nil {
 			return fmt.Errorf("invalid build config for component %#q:\n%w", componentName, err)
+		}
+
+		// Validate component-level package config (default and per-package overrides).
+		if err := component.DefaultPackageConfig.Validate(); err != nil {
+			return fmt.Errorf("invalid default-package-config for component %#q:\n%w", componentName, err)
+		}
+
+		for pkgName, pkgConfig := range component.Packages {
+			if err := pkgConfig.Validate(); err != nil {
+				return fmt.Errorf("invalid package config for %#q in component %#q:\n%w", pkgName, componentName, err)
+			}
 		}
 	}
 
