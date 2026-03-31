@@ -291,17 +291,17 @@ func buildComponentUsingBuilder(
 	// Make sure all output directories exist.
 	err = fileutils.MkdirAll(env.FS(), outputDir)
 	if err != nil {
-		return results, fmt.Errorf("failed to ensure dir %q exists: %w", outputDir, err)
+		return results, fmt.Errorf("failed to ensure dir %#q exists:\n%w", outputDir, err)
 	}
 
 	err = fileutils.MkdirAll(env.FS(), rpmsDir)
 	if err != nil {
-		return results, fmt.Errorf("failed to ensure dir %q exists: %w", rpmsDir, err)
+		return results, fmt.Errorf("failed to ensure dir %#q exists:\n%w", rpmsDir, err)
 	}
 
 	err = fileutils.MkdirAll(env.FS(), srpmsDir)
 	if err != nil {
-		return results, fmt.Errorf("failed to ensure dir %q exists: %w", srpmsDir, err)
+		return results, fmt.Errorf("failed to ensure dir %#q exists:\n%w", srpmsDir, err)
 	}
 
 	buildEvent := env.StartEvent("Building packages with mock", "component", component.GetName())
@@ -334,7 +334,7 @@ func buildComponentUsingBuilder(
 		env, component, outputSourcePackagePath, localRepoPaths, rpmsDir, noCheck,
 	)
 	if err != nil {
-		return results, fmt.Errorf("failed to build RPM for %q: %w", component.GetName(), err)
+		return results, fmt.Errorf("failed to build RPM for %q:\n%w", component.GetName(), err)
 	}
 
 	// Enrich each RPM with its binary package name and resolved publish channel.
@@ -344,7 +344,7 @@ func buildComponentUsingBuilder(
 	}
 
 	// Move RPMs with a channel into out/rpms/<channel>/, leaving unconfigured ones in out/rpms/.
-	if err = PlaceRPMsByChannel(env, results.RPMs, rpmsDir); err != nil {
+	if err = placeRPMsByChannel(env, results.RPMs, rpmsDir); err != nil {
 		return results, fmt.Errorf("failed to place RPMs by channel for %q:\n%w", component.GetName(), err)
 	}
 
@@ -371,11 +371,11 @@ func buildComponentUsingBuilder(
 	return results, nil
 }
 
-// PlaceRPMsByChannel moves each RPM with a configured channel from its initial location in
+// placeRPMsByChannel moves each RPM with a configured channel from its initial location in
 // rpmsDir to a channel-specific subdirectory rpmsDir/<channel>/.
 // RPMs whose channel is empty or the reserved value "none" remain in rpmsDir.
 // [RPMResult.Path] is updated in-place to reflect the final location of each RPM.
-func PlaceRPMsByChannel(env *azldev.Env, rpmResults []RPMResult, rpmsDir string) error {
+func placeRPMsByChannel(env *azldev.Env, rpmResults []RPMResult, rpmsDir string) error {
 	for rpmIdx, rpm := range rpmResults {
 		if rpm.Channel == "" || rpm.Channel == "none" {
 			continue
