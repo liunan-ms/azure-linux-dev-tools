@@ -12,7 +12,7 @@ import (
 	"github.com/microsoft/azure-linux-dev-tools/internal/app/azldev/cmds/config"
 	"github.com/microsoft/azure-linux-dev-tools/internal/app/azldev/cmds/docs"
 	"github.com/microsoft/azure-linux-dev-tools/internal/app/azldev/cmds/image"
-	pkg "github.com/microsoft/azure-linux-dev-tools/internal/app/azldev/cmds/pkg"
+	"github.com/microsoft/azure-linux-dev-tools/internal/app/azldev/cmds/pkg"
 	"github.com/microsoft/azure-linux-dev-tools/internal/app/azldev/cmds/project"
 	"github.com/microsoft/azure-linux-dev-tools/internal/app/azldev/cmds/version"
 )
