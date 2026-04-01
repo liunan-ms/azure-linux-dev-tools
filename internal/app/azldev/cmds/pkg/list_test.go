@@ -189,3 +189,27 @@ func TestListPackages_ByName_MultipleNames(t *testing.T) {
 	assert.Equal(t, "aaa", results[0].PackageName)
 	assert.Equal(t, "zzz", results[1].PackageName)
 }
+
+func TestListPackages_DuplicatePackageAcrossComponents_ReturnsError(t *testing.T) {
+	testEnv := testutils.NewTestEnv(t)
+	testEnv.Config.Components["curl"] = projectconfig.ComponentConfig{
+		Name: "curl",
+		Packages: map[string]projectconfig.PackageConfig{
+			"shared-pkg": {Publish: projectconfig.PackagePublishConfig{Channel: "base"}},
+		},
+	}
+	testEnv.Config.Components["other"] = projectconfig.ComponentConfig{
+		Name: "other",
+		Packages: map[string]projectconfig.PackageConfig{
+			"shared-pkg": {Publish: projectconfig.PackagePublishConfig{Channel: "none"}},
+		},
+	}
+
+	_, err := pkgcmds.ListPackages(testEnv.Env, &pkgcmds.ListPackageOptions{All: true})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "shared-pkg")
+	assert.Contains(t, err.Error(), "component overrides in multiple components")
+	assert.Contains(t, err.Error(), "curl")
+	assert.Contains(t, err.Error(), "other")
+}

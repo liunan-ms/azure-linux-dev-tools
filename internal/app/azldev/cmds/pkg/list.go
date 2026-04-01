@@ -89,6 +89,29 @@ type PackageListResult struct {
 	Channel string `json:"channel" table:"Channel"`
 }
 
+// buildComponentPackageIndex builds a map from binary package name to the component
+// that declares an explicit override for it in its [projectconfig.ComponentConfig.Packages] map.
+// Returns an error if the same package name appears in more than one component, which would
+// otherwise make the resolved configuration nondeterministic.
+func buildComponentPackageIndex(components map[string]projectconfig.ComponentConfig) (map[string]string, error) {
+	compOf := make(map[string]string)
+
+	for compName, comp := range components {
+		for pkg := range comp.Packages {
+			if existingComp, exists := compOf[pkg]; exists && existingComp != compName {
+				return nil, fmt.Errorf(
+					"package %#q has component overrides in multiple components: %#+q and %#+q",
+					pkg, existingComp, compName,
+				)
+			}
+
+			compOf[pkg] = compName
+		}
+	}
+
+	return compOf, nil
+}
+
 // ListPackages returns the resolved [PackageListResult] for the packages selected by options.
 //
 // If [ListPackageOptions.All] is true, all packages with explicit configuration (via
@@ -108,12 +131,9 @@ func ListPackages(env *azldev.Env, options *ListPackageOptions) ([]PackageListRe
 	}
 
 	// Build an index: pkgName → componentName for packages with explicit component overrides.
-	compOf := make(map[string]string)
-
-	for compName, comp := range proj.Components {
-		for pkg := range comp.Packages {
-			compOf[pkg] = compName
-		}
+	compOf, err := buildComponentPackageIndex(proj.Components)
+	if err != nil {
+		return nil, err
 	}
 
 	// Collect the set of package names to resolve.
