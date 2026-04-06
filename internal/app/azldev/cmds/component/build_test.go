@@ -6,8 +6,11 @@ package component_test
 import (
 	"testing"
 
+	"github.com/microsoft/azure-linux-dev-tools/internal/app/azldev"
 	componentcmds "github.com/microsoft/azure-linux-dev-tools/internal/app/azldev/cmds/component"
+	"github.com/microsoft/azure-linux-dev-tools/internal/app/azldev/core/components"
 	"github.com/microsoft/azure-linux-dev-tools/internal/app/azldev/core/testutils"
+	"github.com/microsoft/azure-linux-dev-tools/internal/projectconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -94,4 +97,46 @@ func TestValidateBuildOptions_NoOverlapWithDifferentPaths(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "createrepo_c")
 	assert.NotContains(t, err.Error(), "appears in both")
+}
+
+func makeEnvWithDirs(t *testing.T, workDir, outputDir string) *azldev.Env {
+	t.Helper()
+
+	base := testutils.NewTestEnv(t)
+
+	cfg := projectconfig.NewProjectConfig()
+	cfg.Project.WorkDir = workDir
+	cfg.Project.OutputDir = outputDir
+
+	options := azldev.NewEnvOptions()
+	options.DryRunnable = base.DryRunnable
+	options.EventListener = base.EventListener
+	options.Interfaces = base.TestInterfaces
+	options.Config = &cfg
+
+	return azldev.NewEnv(t.Context(), options)
+}
+
+func TestBuildComponents_NoWorkDir(t *testing.T) {
+	t.Parallel()
+
+	env := makeEnvWithDirs(t, "", "/output")
+	comps := components.NewComponentSet()
+
+	_, err := componentcmds.BuildComponents(env, comps, &componentcmds.ComponentBuildOptions{})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "work dir")
+}
+
+func TestBuildComponents_NoOutputDir(t *testing.T) {
+	t.Parallel()
+
+	env := makeEnvWithDirs(t, "/work", "")
+	comps := components.NewComponentSet()
+
+	_, err := componentcmds.BuildComponents(env, comps, &componentcmds.ComponentBuildOptions{})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "output dir")
 }
