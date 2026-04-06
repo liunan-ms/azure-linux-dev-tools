@@ -8,7 +8,6 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/microsoft/azure-linux-dev-tools/internal/global/opctx"
-	"github.com/microsoft/azure-linux-dev-tools/internal/utils/fileperms"
 	"github.com/microsoft/azure-linux-dev-tools/internal/utils/fileutils"
 	"github.com/pelletier/go-toml/v2"
 )
@@ -76,6 +75,13 @@ func (f ConfigFile) Validate() error {
 		return fmt.Errorf("config file error:\n%w", err)
 	}
 
+	// Validate the project-wide default package config.
+	if f.DefaultPackageConfig != nil {
+		if err := f.DefaultPackageConfig.Validate(); err != nil {
+			return fmt.Errorf("invalid default-package-config:\n%w", err)
+		}
+	}
+
 	// Validate package group configurations.
 	for groupName, group := range f.PackageGroups {
 		if err := group.Validate(); err != nil {
@@ -97,6 +103,17 @@ func (f ConfigFile) Validate() error {
 		if err != nil {
 			return fmt.Errorf("invalid build config for component %#q:\n%w", componentName, err)
 		}
+
+		// Validate component-level package config (default and per-package overrides).
+		if err := component.DefaultPackageConfig.Validate(); err != nil {
+			return fmt.Errorf("invalid default-package-config for component %#q:\n%w", componentName, err)
+		}
+
+		for pkgName, pkgConfig := range component.Packages {
+			if err := pkgConfig.Validate(); err != nil {
+				return fmt.Errorf("invalid package config for %#q in component %#q:\n%w", pkgName, componentName, err)
+			}
+		}
 	}
 
 	return nil
@@ -115,7 +132,7 @@ func (f ConfigFile) ToBytes() ([]byte, error) {
 // Serializes writes the config file to the specified path in appropriate format (TOML). If the given path already
 // exists, it will be overwritten.
 func (f ConfigFile) Serialize(fs opctx.FS, filePath string) error {
-	const defaultPerms = fileperms.PublicFile
+	const defaultPerms = 0o644
 
 	bytes, err := f.ToBytes()
 	if err != nil {
