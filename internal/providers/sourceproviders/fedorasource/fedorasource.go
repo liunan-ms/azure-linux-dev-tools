@@ -27,10 +27,29 @@ type FedoraSourceDownloader interface {
 	// ExtractSourcesFromRepo processes a git repository by downloading any required
 	// lookaside cache files into the repository directory. Files whose names appear
 	// in skipFilenames are not downloaded (e.g., files already fetched separately).
+	// Optional [ExtractOption] values can override default behavior.
 	ExtractSourcesFromRepo(
 		ctx context.Context, repoDir string, packageName string,
 		lookasideBaseURI string, skipFilenames []string,
+		opts ...ExtractOption,
 	) error
+}
+
+// extractOptions holds optional configuration for [ExtractSourcesFromRepo].
+type extractOptions struct {
+	outputDir string
+}
+
+// ExtractOption is a functional option for [ExtractSourcesFromRepo].
+type ExtractOption func(*extractOptions)
+
+// WithOutputDir specifies a separate directory for downloaded files.
+// When set, the sources file is read from repoDir but files are
+// downloaded into outputDir instead.
+func WithOutputDir(dir string) ExtractOption {
+	return func(o *extractOptions) {
+		o.outputDir = dir
+	}
 }
 
 // FedoraSourceDownloaderImpl is an implementation of GitRepoExtractor.
@@ -123,6 +142,7 @@ func NewFedoraRepoExtractorImpl(
 // lookaside cache files into the repository directory.
 func (g *FedoraSourceDownloaderImpl) ExtractSourcesFromRepo(
 	ctx context.Context, repoDir string, packageName string, lookasideBaseURI string, skipFileNames []string,
+	opts ...ExtractOption,
 ) error {
 	if repoDir == "" {
 		return errors.New("repository directory cannot be empty")
@@ -130,6 +150,17 @@ func (g *FedoraSourceDownloaderImpl) ExtractSourcesFromRepo(
 
 	if lookasideBaseURI == "" {
 		return errors.New("lookaside base URI cannot be empty")
+	}
+
+	// Apply functional options.
+	var options extractOptions
+
+	for _, opt := range opts {
+		if opt == nil {
+			continue
+		}
+
+		opt(&options)
 	}
 
 	repoDirExists, err := fileutils.Exists(g.fileSystem, repoDir)
@@ -148,8 +179,10 @@ func (g *FedoraSourceDownloaderImpl) ExtractSourcesFromRepo(
 		return fmt.Errorf("failed to check if sources file exists at %#q:\n%w", sourcesFilePath, err)
 	}
 
-	// If the sources file does not exist, there are no external sources to download
+	// If the sources file does not exist, there are no external sources to download.
 	if !sourcesExists {
+		slog.Info("No 'sources' file found, nothing to download", "dir", repoDir)
+
 		return nil
 	}
 
@@ -168,7 +201,17 @@ func (g *FedoraSourceDownloaderImpl) ExtractSourcesFromRepo(
 		skipSet[name] = true
 	}
 
-	err = g.downloadAndVerifySources(ctx, sourceFiles, repoDir, skipSet)
+	// Determine where to write downloaded files.
+	destDir := repoDir
+	if options.outputDir != "" {
+		destDir = options.outputDir
+
+		if err := fileutils.MkdirAll(g.fileSystem, destDir); err != nil {
+			return fmt.Errorf("failed to create output directory %#q:\n%w", destDir, err)
+		}
+	}
+
+	err = g.downloadAndVerifySources(ctx, sourceFiles, destDir, skipSet)
 	if err != nil {
 		return fmt.Errorf("failed to download sources:\n%w", err)
 	}
@@ -226,6 +269,10 @@ func (g *FedoraSourceDownloaderImpl) downloadAndVerifySources(
 
 			return nil
 		}); err != nil {
+			// Remove any bad file left by the final failed attempt so subsequent
+			// callers (e.g. retrying with a different URI) don't see it as valid.
+			_ = g.fileSystem.Remove(destFilePath)
+
 			return fmt.Errorf("failed to retrieve source file %#q:\n%w", sourceFile.fileName, err)
 		}
 	}
@@ -269,6 +316,11 @@ func parseSourcesFile(content string, packageName string, lookasideBaseURI strin
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build lookaside URL for file %#q:\n%w", entry.Filename, err)
+		}
+
+		// Validate the filename to prevent path traversal attacks from crafted sources entries.
+		if err := fileutils.ValidateFilename(entry.Filename); err != nil {
+			return nil, fmt.Errorf("unsafe filename in sources file %#q:\n%w", entry.Filename, err)
 		}
 
 		sourceFiles = append(sourceFiles, sourceFileInfo{
