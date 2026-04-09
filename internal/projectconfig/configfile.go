@@ -114,7 +114,7 @@ func (f ConfigFile) ToBytes() ([]byte, error) {
 // Serializes writes the config file to the specified path in appropriate format (TOML). If the given path already
 // exists, it will be overwritten.
 func (f ConfigFile) Serialize(fs opctx.FS, filePath string) error {
-	const defaultPerms = 0o644
+	const defaultPerms = fileperms.PublicFile
 
 	bytes, err := f.ToBytes()
 	if err != nil {
