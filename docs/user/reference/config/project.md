@@ -47,7 +47,7 @@ The most common use is to set a project-wide default publish channel:
 
 ```toml
 [default-package-config.publish]
-channel = "rpm-base"
+publish-channel = "rpm-base"
 ```
 
 See [Package Groups](package-groups.md#resolution-order) for the full resolution order.
@@ -71,14 +71,14 @@ output-dir = "out"
 default-distro = { name = "azurelinux", version = "4.0" }
 
 [default-package-config.publish]
-channel = "base"
+publish-channel = "base"
 
 [package-groups.devel-packages]
 description = "Development subpackages"
 packages = ["curl-devel", "curl-static", "wget2-devel"]
 
 [package-groups.devel-packages.default-package-config.publish]
-channel = "devel"
+publish-channel = "devel"
 ```
 
 ## Related Resources

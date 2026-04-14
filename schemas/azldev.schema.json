@@ -575,7 +575,7 @@
     },
     "PackagePublishConfig": {
       "properties": {
-        "channel": {
+        "publish-channel": {
           "type": "string",
           "title": "Channel",
           "description": "Publish channel for this package; use 'none' to signal to downstream tooling that this package should not be published"

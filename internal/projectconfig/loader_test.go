@@ -565,7 +565,7 @@ includes = ["*non-existent*.toml"]
 func TestLoadAndResolveProjectConfig_DefaultPackageConfig(t *testing.T) {
 	const configContents = `
 [default-package-config.publish]
-channel = "base"
+publish-channel = "base"
 `
 
 	ctx := testctx.NewCtx()
@@ -587,11 +587,11 @@ func TestLoadAndResolveProjectConfig_DefaultPackageConfig_MergedAcrossFiles(t *t
 includes = ["extra.toml"]
 
 [default-package-config.publish]
-channel = "base"
+publish-channel = "base"
 `},
 		{"/project/extra.toml", `
 [default-package-config.publish]
-channel = "stable"
+publish-channel = "stable"
 `},
 	}
 
@@ -613,11 +613,11 @@ func TestLoadAndResolveProjectConfig_DefaultPackageConfig_MergedAcrossTopLevelFi
 	const (
 		configContents1 = `
 [default-package-config.publish]
-channel = "first"
+publish-channel = "first"
 `
 		configContents2 = `
 [default-package-config.publish]
-channel = "second"
+publish-channel = "second"
 `
 	)
 
@@ -641,14 +641,14 @@ description = "Development subpackages"
 packages = ["curl-devel", "wget2-devel"]
 
 [package-groups.devel-packages.default-package-config.publish]
-channel = "devel"
+publish-channel = "devel"
 
 [package-groups.debug-packages]
 description = "Debug info packages"
 packages = ["curl-debuginfo", "curl-debugsource"]
 
 [package-groups.debug-packages.default-package-config.publish]
-channel = "none"
+publish-channel = "none"
 `
 
 	ctx := testctx.NewCtx()
@@ -777,10 +777,10 @@ func TestLoadAndResolveProjectConfig_ComponentDefaultPackageConfig(t *testing.T)
 [components.curl]
 
 [components.curl.default-package-config.publish]
-channel = "base"
+publish-channel = "base"
 
 [components.curl.packages.curl-devel.publish]
-channel = "devel"
+publish-channel = "devel"
 `
 
 	ctx := testctx.NewCtx()

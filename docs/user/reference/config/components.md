@@ -202,7 +202,7 @@ The `default-package-config` field provides a component-level default that appli
 
 ```toml
 [components.curl.default-package-config.publish]
-channel = "rpm-base"
+publish-channel = "rpm-base"
 ```
 
 ### Per-Package Overrides
@@ -212,7 +212,7 @@ The `[components.<name>.packages.<pkgname>]` map lets you override config for a 
 ```toml
 # Override just one subpackage
 [components.curl.packages.curl-devel.publish]
-channel = "rpm-devel"
+publish-channel = "rpm-devel"
 ```
 
 ### Resolution Order
@@ -233,15 +233,15 @@ See [Package Groups](package-groups.md) for the full field reference and a compl
 
 # Route all curl packages to "base" by default ...
 [components.curl.default-package-config.publish]
-channel = "rpm-base"
+publish-channel = "rpm-base"
 
 # ... but put curl-devel in the "devel" channel
 [components.curl.packages.libcurl-devel.publish]
-channel = "rpm-devel"
+publish-channel = "rpm-devel"
 
 # Signal to downstream tooling that this package should not be published
 [components.curl.packages.libcurl-minimal.publish]
-channel = "none"
+publish-channel = "none"
 ```
 
 ## Source File References

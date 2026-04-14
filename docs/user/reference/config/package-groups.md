@@ -43,7 +43,7 @@ The `[package-groups.<name>.default-package-config]` section defines the configu
 
 | Field | TOML Key | Type | Required | Description |
 |-------|----------|------|----------|-------------|
-| Channel | `channel` | string | No | Publish channel for this package. Use `"none"` to signal to downstream tooling that this package should not be published. |
+| Channel | `publish-channel` | string | No | Publish channel for this package. Use `"none"` to signal to downstream tooling that this package should not be published. |
 
 ## Resolution Order
 
@@ -61,14 +61,14 @@ When determining the effective config for a binary package, azldev applies confi
 ```toml
 # Set a project-wide default channel
 [default-package-config.publish]
-channel = "rpm-base"
+publish-channel = "rpm-base"
 
 [package-groups.devel-packages]
 description = "Development subpackages"
 packages = ["libcurl-devel", "curl-static", "wget2-devel"]
 
 [package-groups.devel-packages.default-package-config.publish]
-channel = "rpm-build-only"
+publish-channel = "rpm-build-only"
 
 [package-groups.debug-packages]
 description = "Debug info and source"
@@ -82,7 +82,7 @@ packages = [
 ]
 
 [package-groups.debug-packages.default-package-config.publish]
-channel = "rpm-debug"
+publish-channel = "rpm-debug"
 ```
 
 ## Related Resources
