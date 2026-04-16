@@ -120,6 +120,7 @@ func TestPackageGroupConfig_Validate(t *testing.T) {
 	})
 }
 
+//nolint:dupl // Same merge semantics as SRPMConfig.MergeUpdatesFrom; duplication is intentional.
 func TestPackageConfig_MergeUpdatesFrom(t *testing.T) {
 	t.Run("non-zero other overrides zero base", func(t *testing.T) {
 		base := projectconfig.PackageConfig{}

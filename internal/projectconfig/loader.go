@@ -123,6 +123,10 @@ func mergeConfigFile(resolvedCfg *ProjectConfig, loadedCfg *ConfigFile) error {
 		return err
 	}
 
+	if err := mergeDefaultSRPMConfig(resolvedCfg, loadedCfg); err != nil {
+		return err
+	}
+
 	if err := mergePackageGroups(resolvedCfg, loadedCfg); err != nil {
 		return err
 	}
@@ -230,6 +234,18 @@ func mergeDefaultPackageConfig(resolvedCfg *ProjectConfig, loadedCfg *ConfigFile
 	if loadedCfg.DefaultPackageConfig != nil {
 		if err := resolvedCfg.DefaultPackageConfig.MergeUpdatesFrom(loadedCfg.DefaultPackageConfig); err != nil {
 			return fmt.Errorf("failed to merge project default package config:\n%w", err)
+		}
+	}
+
+	return nil
+}
+
+// mergeDefaultSRPMConfig merges the project-level default SRPM config from a loaded
+// config file into the resolved config.
+func mergeDefaultSRPMConfig(resolvedCfg *ProjectConfig, loadedCfg *ConfigFile) error {
+	if loadedCfg.DefaultSRPMConfig != nil {
+		if err := resolvedCfg.DefaultSRPMConfig.MergeUpdatesFrom(loadedCfg.DefaultSRPMConfig); err != nil {
+			return fmt.Errorf("failed to merge project default SRPM config:\n%w", err)
 		}
 	}
 

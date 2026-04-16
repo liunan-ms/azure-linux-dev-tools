@@ -82,6 +82,10 @@ type ComponentGroupConfig struct {
 
 	// Default configuration to apply to component members of this group.
 	DefaultComponentConfig ComponentConfig `toml:"default-component-config,omitempty" json:"defaultComponentConfig,omitempty" jsonschema:"title=Default component configuration,description=Default component config inherited by all members of this component group"`
+
+	// DefaultSRPMConfig is the default SRPM configuration inherited by all components in this group.
+	// Takes precedence over the project-wide DefaultSRPMConfig; overridden by a component's own SRPMConfig.
+	DefaultSRPMConfig SRPMConfig `toml:"default-srpm-config,omitempty" json:"defaultSrpmConfig,omitempty" jsonschema:"title=Default SRPM config,description=Default SRPM configuration inherited by all components in this group"`
 }
 
 // Returns a copy of the component group config with relative file paths converted to absolute
@@ -122,6 +126,11 @@ type ComponentConfig struct {
 	// in serialized files. Empty when rendered-specs-dir is not configured.
 	RenderedSpecDir string `toml:"-" json:"renderedSpecDir,omitempty" table:"-"`
 
+	// SRPMPublishChannel is the resolved publish channel for this component's source RPM.
+	// Derived at resolve time from the project and component-group SRPM config; not present
+	// in serialized files. Empty when no channel is configured.
+	SRPMPublishChannel string `toml:"-" json:"srpmPublishChannel,omitempty" table:"SRPM Publish Channel" fingerprint:"-"`
+
 	// Where to get its spec and adjacent files from.
 	Spec SpecSource `toml:"spec,omitempty" json:"spec,omitempty" jsonschema:"title=Spec,description=Identifies where to find the spec for this component"`
 
@@ -141,6 +150,10 @@ type ComponentConfig struct {
 	// Per-package configuration overrides, keyed by exact binary package name.
 	// Takes precedence over DefaultPackageConfig and package-group defaults.
 	Packages map[string]PackageConfig `toml:"packages,omitempty" json:"packages,omitempty" table:"-" validate:"dive" jsonschema:"title=Package overrides,description=Per-package configuration overrides keyed by exact binary package name"`
+
+	// SRPMConfig holds per-component SRPM configuration. Takes precedence over
+	// group-level and project-level defaults.
+	SRPMConfig SRPMConfig `toml:"srpm-config,omitempty" json:"srpmConfig,omitempty" table:"-" jsonschema:"title=SRPM config,description=Configuration for the source RPM produced by this component"`
 }
 
 // AllowedSourceFilesHashTypes defines the set of hash types that are supported
@@ -173,11 +186,13 @@ func (c *ComponentConfig) WithAbsolutePaths(referenceDir string) *ComponentConfi
 		Name:                 c.Name,
 		SourceConfigFile:     c.SourceConfigFile,
 		RenderedSpecDir:      c.RenderedSpecDir,
+		SRPMPublishChannel:   c.SRPMPublishChannel,
 		Spec:                 deep.MustCopy(c.Spec),
 		Build:                deep.MustCopy(c.Build),
 		SourceFiles:          deep.MustCopy(c.SourceFiles),
 		DefaultPackageConfig: deep.MustCopy(c.DefaultPackageConfig),
 		Packages:             deep.MustCopy(c.Packages),
+		SRPMConfig:           deep.MustCopy(c.SRPMConfig),
 	}
 
 	// Fix up paths.

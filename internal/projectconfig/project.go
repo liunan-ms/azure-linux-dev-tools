@@ -31,6 +31,11 @@ type ProjectConfig struct {
 	// package config resolution order.
 	DefaultPackageConfig PackageConfig `toml:"default-package-config,omitempty" json:"defaultPackageConfig,omitempty" jsonschema:"title=Default package config,description=Project-wide default applied to all binary packages before group and component overrides"`
 
+	// DefaultSRPMConfig is the project-wide default applied to every source RPM before any
+	// component-group or component-level config is considered. It is the lowest-priority layer in the
+	// SRPM config resolution order.
+	DefaultSRPMConfig SRPMConfig `toml:"default-srpm-config,omitempty" json:"defaultSrpmConfig,omitempty" jsonschema:"title=Default SRPM config,description=Project-wide default applied to all source RPMs before component group and component overrides"`
+
 	// Definitions of package groups with shared configuration.
 	PackageGroups map[string]PackageGroupConfig `toml:"package-groups,omitempty" json:"packageGroups,omitempty" jsonschema:"title=Package groups,description=Mapping of package group names to configurations for publish-time routing"`
 

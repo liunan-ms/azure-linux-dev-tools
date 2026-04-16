@@ -139,6 +139,11 @@
           "type": "object",
           "title": "Package overrides",
           "description": "Per-package configuration overrides keyed by exact binary package name"
+        },
+        "srpm-config": {
+          "$ref": "#/$defs/SRPMConfig",
+          "title": "SRPM config",
+          "description": "Configuration for the source RPM produced by this component"
         }
       },
       "additionalProperties": false,
@@ -185,6 +190,11 @@
           "$ref": "#/$defs/ComponentConfig",
           "title": "Default component configuration",
           "description": "Default component config inherited by all members of this component group"
+        },
+        "default-srpm-config": {
+          "$ref": "#/$defs/SRPMConfig",
+          "title": "Default SRPM config",
+          "description": "Default SRPM configuration inherited by all components in this group"
         }
       },
       "additionalProperties": false,
@@ -334,6 +344,11 @@
           "$ref": "#/$defs/PackageConfig",
           "title": "Default package config",
           "description": "Project-wide default applied to all binary packages before group and component overrides"
+        },
+        "default-srpm-config": {
+          "$ref": "#/$defs/SRPMConfig",
+          "title": "Default SRPM config",
+          "description": "Project-wide default applied to all source RPMs before component group and component overrides"
         },
         "package-groups": {
           "additionalProperties": {
@@ -646,6 +661,28 @@
           "type": "string",
           "title": "Default Author Email",
           "description": "Default email for synthetic changelog entries and commits"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "SRPMConfig": {
+      "properties": {
+        "publish": {
+          "$ref": "#/$defs/SRPMPublishConfig",
+          "title": "Publish settings",
+          "description": "Publishing settings for this source RPM"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "SRPMPublishConfig": {
+      "properties": {
+        "channel": {
+          "type": "string",
+          "title": "Channel",
+          "description": "Publish channel for this source RPM; use 'none' to signal to downstream tooling that this SRPM should not be published"
         }
       },
       "additionalProperties": false,

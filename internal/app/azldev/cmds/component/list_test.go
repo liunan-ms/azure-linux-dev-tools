@@ -4,7 +4,6 @@
 package component_test
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/microsoft/azure-linux-dev-tools/internal/app/azldev/cmds/component"
@@ -36,17 +35,12 @@ func TestComponentListCmd_NoMatch(t *testing.T) {
 }
 
 func TestListComponents_OneComponent(t *testing.T) {
-	const (
-		testComponentName = "test-component"
-		testSpecPath      = "/path/to/spec"
-	)
+	const testComponentName = "test-component"
 
 	testEnv := testutils.NewTestEnv(t)
 	testEnv.Config.Components[testComponentName] = projectconfig.ComponentConfig{
 		Name: testComponentName,
-		Spec: projectconfig.SpecSource{
-			Path: testSpecPath,
-		},
+		Spec: projectconfig.SpecSource{Path: "/path/to/spec"},
 	}
 
 	options := component.ListComponentOptions{
@@ -59,26 +53,19 @@ func TestListComponents_OneComponent(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 
-	result := results[0]
-	assert.Equal(t, testComponentName, result.Name)
-	assert.Equal(t, testSpecPath, result.Spec.Path)
-	assert.Empty(t, result.RenderedSpecDir, "RenderedSpecDir should be empty when rendered-specs-dir is not configured")
+	assert.Equal(t, testComponentName, results[0].Name)
+	assert.Empty(t, results[0].SRPMPublishChannel, "SRPMPublishChannel should be empty when no channel is configured")
 }
 
-func TestListComponents_WithRenderedSpecsDir(t *testing.T) {
-	const (
-		testComponentName = "vim"
-		testSpecPath      = "/path/to/spec"
-		testRenderedDir   = "/path/to/repo/specs"
-	)
+func TestListComponents_SRPMPublishChannel(t *testing.T) {
+	const testComponentName = "curl"
 
 	testEnv := testutils.NewTestEnv(t)
-	testEnv.Config.Project.RenderedSpecsDir = testRenderedDir
 	testEnv.Config.Components[testComponentName] = projectconfig.ComponentConfig{
 		Name: testComponentName,
-		Spec: projectconfig.SpecSource{
-			Path: testSpecPath,
-		},
+	}
+	testEnv.Config.DefaultSRPMConfig = projectconfig.SRPMConfig{
+		Publish: projectconfig.SRPMPublishConfig{Channel: "sdk-src"},
 	}
 
 	options := component.ListComponentOptions{
@@ -91,16 +78,12 @@ func TestListComponents_WithRenderedSpecsDir(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 
-	result := results[0]
-	assert.Equal(t, testComponentName, result.Name)
-	assert.Equal(t, filepath.Join(testRenderedDir, "v", testComponentName), result.RenderedSpecDir)
+	assert.Equal(t, testComponentName, results[0].Name)
+	assert.Equal(t, "sdk-src", results[0].SRPMPublishChannel)
 }
 
-func TestListComponents_MultipleWithRenderedSpecsDir(t *testing.T) {
-	const testRenderedDir = "/rendered/specs"
-
+func TestListComponents_MultipleComponents(t *testing.T) {
 	testEnv := testutils.NewTestEnv(t)
-	testEnv.Config.Project.RenderedSpecsDir = testRenderedDir
 
 	testEnv.Config.Components["curl"] = projectconfig.ComponentConfig{
 		Name: "curl",
@@ -121,14 +104,10 @@ func TestListComponents_MultipleWithRenderedSpecsDir(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 
-	expectedDirs := map[string]string{
-		"curl": filepath.Join(testRenderedDir, "c", "curl"),
-		"vim":  filepath.Join(testRenderedDir, "v", "vim"),
+	names := make([]string, 0, len(results))
+	for _, r := range results {
+		names = append(names, r.Name)
 	}
 
-	for _, result := range results {
-		expected, ok := expectedDirs[result.Name]
-		require.True(t, ok, "unexpected component %q in results", result.Name)
-		assert.Equal(t, expected, result.RenderedSpecDir)
-	}
+	assert.ElementsMatch(t, []string{"curl", "vim"}, names)
 }

@@ -43,6 +43,8 @@ func TestAllFingerprintedFieldsHaveDecision(t *testing.T) {
 		"ComponentConfig.Name": true,
 		// ComponentConfig.SourceConfigFile — internal bookkeeping reference, not a build input.
 		"ComponentConfig.SourceConfigFile": true,
+		// ComponentConfig.SRPMPublishChannel — post-build routing (where to publish the SRPM), not a build input.
+		"ComponentConfig.SRPMPublishChannel": true,
 
 		// ComponentBuildConfig.Failure — CI policy (expected failure tracking), not a build input.
 		"ComponentBuildConfig.Failure": true,

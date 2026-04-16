@@ -463,6 +463,14 @@ func (r *Resolver) createComponentFromConfig(componentConfig *projectconfig.Comp
 			componentConfig.Name, err)
 	}
 
+	srpmConfig, err := projectconfig.ResolveSRPMConfig(componentConfig, r.env.Config())
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve SRPM config for component %#q:\n%w",
+			componentConfig.Name, err)
+	}
+
+	componentConfig.SRPMPublishChannel = srpmConfig.Publish.Channel
+
 	return &resolvedComponent{
 		env:    r.env,
 		config: *componentConfig,

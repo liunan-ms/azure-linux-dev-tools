@@ -63,6 +63,10 @@ type ComponentBuildResults struct {
 	// Absolute paths to any source RPMs built by the operation.
 	SRPMPaths []string `json:"srpmPaths" table:"SRPM Paths"`
 
+	// SRPMPublishChannel is the resolved publish channel for the source RPM.
+	// Empty string means no channel was configured.
+	SRPMPublishChannel string `json:"srpmPublishChannel" table:"SRPM Publish Channel"`
+
 	// Absolute paths to any RPMs built by the operation.
 	RPMPaths []string `json:"rpmPaths" table:"RPM Paths"`
 
@@ -328,6 +332,7 @@ func buildComponentUsingBuilder(
 	// Start filling out results.
 	results.ComponentName = component.GetName()
 	results.SRPMPaths = []string{outputSourcePackagePath}
+	results.SRPMPublishChannel = component.GetConfig().SRPMPublishChannel
 
 	// Short circuit if we were asked only to build the SRPM.
 	if sourcePackageOnly {
@@ -356,17 +361,8 @@ func buildComponentUsingBuilder(
 		return results, fmt.Errorf("failed to place RPMs by channel for %#q:\n%w", component.GetName(), err)
 	}
 
-	// Sync RPMPaths to the final (possibly moved) locations.
-	results.RPMPaths = make([]string, len(results.RPMs))
-	for rpmIdx, rpm := range results.RPMs {
-		results.RPMPaths[rpmIdx] = rpm.Path
-	}
-
-	// Populate the parallel Channels slice for table display.
-	results.RPMChannels = make([]string, len(results.RPMs))
-	for rpmIdx, rpm := range results.RPMs {
-		results.RPMChannels[rpmIdx] = rpm.Channel
-	}
+	// Sync RPMPaths and RPMChannels to the final (possibly moved) RPM locations.
+	syncRPMResults(&results)
 
 	// Publish built RPMs to local repo with publish enabled.
 	if localRepoWithPublishPath != "" && len(results.RPMPaths) > 0 {
@@ -377,6 +373,18 @@ func buildComponentUsingBuilder(
 	}
 
 	return results, nil
+}
+
+// syncRPMResults updates [ComponentBuildResults.RPMPaths] and [ComponentBuildResults.RPMChannels]
+// to reflect the final (possibly moved) locations and channels of each RPM in [ComponentBuildResults.RPMs].
+func syncRPMResults(results *ComponentBuildResults) {
+	results.RPMPaths = make([]string, len(results.RPMs))
+	results.RPMChannels = make([]string, len(results.RPMs))
+
+	for i, rpm := range results.RPMs {
+		results.RPMPaths[i] = rpm.Path
+		results.RPMChannels[i] = rpm.Channel
+	}
 }
 
 // PlaceRPMsByChannel moves each RPM with a configured channel from its initial location in

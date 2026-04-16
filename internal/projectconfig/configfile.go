@@ -50,6 +50,10 @@ type ConfigFile struct {
 	// package-group or component-level config is considered.
 	DefaultPackageConfig *PackageConfig `toml:"default-package-config,omitempty" jsonschema:"title=Default package config,description=Project-wide default applied to all binary packages before group and component overrides"`
 
+	// DefaultSRPMConfig is the project-wide default SRPM configuration applied before any
+	// component-group or component-level config is considered.
+	DefaultSRPMConfig *SRPMConfig `toml:"default-srpm-config,omitempty" jsonschema:"title=Default SRPM config,description=Project-wide default applied to all source RPMs before component group and component overrides"`
+
 	// Definitions of package groups. Groups allow shared configuration
 	// to be applied to sets of binary packages.
 	PackageGroups map[string]PackageGroupConfig `toml:"package-groups,omitempty" validate:"dive" jsonschema:"title=Package groups,description=Definitions of package groups for shared binary package configuration"`
