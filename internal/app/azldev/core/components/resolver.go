@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"path"
 	"path/filepath"
 	"slices"
@@ -42,6 +43,10 @@ type Resolver struct {
 	// Only 'component update' enables this — it uses the freshness status to
 	// decide which components need re-resolution and which can be skipped.
 	CheckFreshness bool
+
+	// patternCache lazily holds the result of pattern-based component
+	// discovery so repeated resolver calls don't re-glob the filesystem.
+	patternCache discoveredComponentsCache
 }
 
 // NewResolver constructs a new [Resolver] for the given environment.
@@ -109,7 +114,14 @@ func (r *Resolver) FindComponents(filter *ComponentFilter) (components *Componen
 	return components, r.validateLockFiles(components, false, skipValidation)
 }
 
-// Finds *all* components defined in the environment.
+// Finds *all* components defined in the environment. This unions three sources:
+//   - components reached via component-group spec-path patterns,
+//   - loose components declared in the project config, and
+//   - components discovered by a project-level 'overlay-files' entry containing
+//     the '{component}' placeholder.
+//
+// Explicit declarations shadow pattern-discovered matches of the same name; a
+// warning is emitted for the shadowed entry.
 func (r *Resolver) FindAllComponents() (components *ComponentSet, err error) {
 	components = NewComponentSet()
 
@@ -162,6 +174,32 @@ func (r *Resolver) FindAllComponents() (components *ComponentSet, err error) {
 		comp, createErr := r.createComponentFromConfig(updatedComponentConfig)
 		if createErr != nil {
 			return components, createErr
+		}
+
+		components.Add(comp)
+	}
+
+	// Finally, add pattern-discovered components (from project-level 'overlay-files'
+	// entries containing '{component}') that were not already covered by an explicit
+	// component declaration. Pattern-discovered names are shadowed by explicit
+	// declarations; a warning is emitted for the shadowed match.
+	discovered, err := r.patternDiscoveredComponents()
+	if err != nil {
+		return components, err
+	}
+
+	for _, name := range slices.Sorted(maps.Keys(discovered)) {
+		entry := discovered[name]
+
+		if components.Contains(name) {
+			logShadowedByDeclaration(entry)
+
+			continue
+		}
+
+		comp, addErr := r.componentFromPatternDiscovered(entry, nil)
+		if addErr != nil {
+			return components, addErr
 		}
 
 		components.Add(comp)
@@ -273,6 +311,10 @@ func (r *Resolver) GetComponentGroupByName(componentGroupName string) (component
 		// to unify/deduplicate components.
 		componentGroup.Components = append(componentGroup.Components, groupEntry)
 	}
+
+	// Pattern-discovered components (from a project-level 'overlay-files' entry
+	// containing '{component}') do not belong to any specific component group;
+	// they are added to the project-wide component set in FindAllComponents.
 
 	return componentGroup, nil
 }
@@ -890,6 +932,35 @@ func componentGroupNames(env *azldev.Env, componentName string, extraGroupNames 
 	}
 
 	return groupNames
+}
+
+// patternDiscoveredComponents returns the (lazily-computed) map of components
+// discovered by a project-level 'overlay-files' entry containing the
+// '{component}' placeholder. Returns nil map and nil error when the project
+// default-component-config declares no such entry.
+func (r *Resolver) patternDiscoveredComponents() (map[string]*patternDiscoveredComponent, error) {
+	return r.patternCache.load(r.env)
+}
+
+// componentFromPatternDiscovered synthesizes a [Component] for a pattern
+// discovered entry, applying inherited defaults with the entry's captured
+// directory as the overlay-files reference dir.
+func (r *Resolver) componentFromPatternDiscovered(
+	entry *patternDiscoveredComponent, groupNames []string,
+) (Component, error) {
+	synth := projectconfig.ComponentConfig{
+		Name:         entry.Name,
+		OverlayFiles: slices.Clone(entry.OverlayFiles),
+	}
+
+	updated, err := applyInheritedDefaultsToComponent(r.env, synth, entry.ReferenceDir, groupNames)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"applying defaults to pattern-discovered component %#q:\n%w", entry.Name, err,
+		)
+	}
+
+	return r.createComponentFromConfig(updated)
 }
 
 // validateLockFiles checks lock file consistency against the resolved component

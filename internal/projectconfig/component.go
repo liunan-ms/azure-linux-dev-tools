@@ -273,20 +273,33 @@ type ComponentConfig struct {
 	// Overlays to apply to sources after they've been acquired. May mutate the spec as well as sources.
 	Overlays []ComponentOverlay `toml:"overlays,omitempty" json:"overlays,omitempty" table:"-" jsonschema:"title=Overlays,description=Overlays to apply to this component's spec and/or sources"`
 
-	// OverlayFiles, if set, lists path or glob patterns (relative to this component config file)
-	// matched against the filesystem after component config resolution to locate per-file overlay documents.
-	// Each matched file is parsed as an [OverlayFile]: one logical change consisting of a
-	// file-level `[metadata]` block plus an ordered list of `[[overlays]]`. The per-file
-	// metadata is stamped onto every overlay in the file. Matches are concatenated in the
-	// order patterns are declared; within a single pattern, matches are applied in
-	// filename (lexicographic) order, using the full path as a tie-breaker when
-	// filenames match. Duplicate matches are de-duplicated, preserving first
-	// occurrence. The resulting overlays are appended to [ComponentConfig.Overlays]
-	// after any inline overlays. A value set in a higher-priority config layer replaces
-	// lower-priority overlay-files values; an explicit empty list disables inherited
-	// overlay files. Excluded from the fingerprint because the value affects only where
-	// overlays are sourced from, not their content.
-	OverlayFiles []string `toml:"overlay-files,omitempty" json:"overlayFiles,omitempty" table:"-" validate:"dive,required" jsonschema:"title=Overlay files,description=Path or glob patterns (relative to the component config file or matched spec directory) matched against the filesystem to locate per-file overlay documents after component config resolution. Use an empty list to disable inherited overlay-file patterns" fingerprint:"-"`
+	// OverlayFiles lists path or glob patterns matched against the filesystem after
+	// component config resolution to locate per-file overlay documents. Each matched
+	// file is parsed as an [OverlayFile]: one logical change consisting of a file-level
+	// `[metadata]` block plus an ordered list of `[[overlays]]`. The per-file metadata
+	// is stamped onto every overlay in the file. Matches are concatenated in the order
+	// entries are declared; within a single entry, matches are applied in filename
+	// (lexicographic) order, using the full path as a tie-breaker when filenames match.
+	// Duplicate matches are de-duplicated, preserving first occurrence. The resulting
+	// overlays are appended to [ComponentConfig.Overlays] after any inline overlays.
+	//
+	// A value set in a higher-priority config layer replaces lower-priority values
+	// wholesale; an explicit empty list disables inherited overlay files.
+	//
+	// At project scope, every entry MUST contain the `{component}` placeholder exactly
+	// once as a whole path segment: those entries drive component discovery (each
+	// captured segment becomes an implicit component) and, when inherited by an explicit
+	// component that does not override, `{component}` is substituted with that
+	// component's name at glob time. Two project-scope entries that produce the same
+	// component name is a hard error.
+	//
+	// At distro, component-group, or per-component scope, entries are plain globs
+	// interpreted relative to the declaring config file (or the matched spec directory);
+	// `{component}` is not allowed at these scopes.
+	//
+	// Excluded from the fingerprint because the value affects only where overlays are
+	// sourced from, not their content.
+	OverlayFiles []string `toml:"overlay-files,omitempty" json:"overlayFiles,omitempty" table:"-" validate:"dive,required" jsonschema:"title=Overlay files,description=Path or glob patterns matched against the filesystem to locate per-file overlay documents. At project scope every entry must contain the {component} placeholder as a whole path segment (drives discovery and per-component substitution). At other scopes {component} is not allowed and entries are plain globs relative to the config file. Use an empty list to disable inheritance." fingerprint:"-"`
 
 	// Configuration for building the component.
 	Build ComponentBuildConfig `toml:"build,omitempty" json:"build,omitempty" table:"-" jsonschema:"title=Build configuration,description=Configuration for building the component"`
@@ -404,10 +417,12 @@ func (c *ComponentConfig) WithAbsolutePaths(referenceDir string) *ComponentConfi
 		SourceFiles:      deep.MustCopy(c.SourceFiles),
 		Packages:         deep.MustCopy(c.Packages),
 		Publish:          deep.MustCopy(c.Publish),
-		// OverlayFiles is consumed after component config resolution; preserve it verbatim
-		// here so inherited patterns can be interpreted relative to the concrete component
-		// config file.
-		OverlayFiles: slices.Clone(c.OverlayFiles),
+		// OverlayFiles: entries with the {component} placeholder are project-scope
+		// discovery patterns and are absolutized now so downstream code sees stable
+		// absolute paths regardless of where the config was inherited from. Non-placeholder
+		// entries are left verbatim so distro/group/component-scope inherited patterns can
+		// still be interpreted relative to the concrete component config file at glob time.
+		OverlayFiles: absolutizeOverlayFilesPlaceholderEntries(referenceDir, c.OverlayFiles),
 	}
 
 	// Fix up paths.

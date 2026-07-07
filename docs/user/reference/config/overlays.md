@@ -210,6 +210,44 @@ section = "%changelog"
 lines = ["- Fix CVE-2024-1234"]
 ```
 
+### Discovering components by pattern (`{component}` in `overlay-files`)
+
+For projects that keep each component's overlay files in a predictable per-component directory (e.g. `base/comps/<name>/overlays/*.overlay.toml`), you can skip declaring a one-line `[components.<name>]` table for every component. Set `overlay-files` on the **project-level** `default-component-config` to a pattern containing `{component}`, and every match becomes an implicit component.
+
+Project-scope `overlay-files` entries **must** contain `{component}` exactly once, as a whole path segment. For each entry, `{component}` is expanded to `*` for globbing, and the captured path segment becomes the discovered component's name. The matched files are attached to that component (as if it had declared `overlay-files = [<matched paths>]` explicitly). Explicit components with no `overlay-files` of their own inherit the same pattern and re-expand it with their own name substituted for `{component}`.
+
+```toml
+# components.toml (project-level)
+[default-component-config]
+overlay-files = ["base/comps/{component}/overlays/*.overlay.toml"]
+```
+
+With the layout below, no per-component `[components.<name>]` table is needed — `openssl` and `curl` are discovered automatically, each carrying its overlay files.
+
+```
+base/comps/
+├── openssl/
+│   └── overlays/
+│       ├── 0001-cve-2024-1234.overlay.toml
+│       └── 0002-disable-fips-tests.overlay.toml
+└── curl/
+    └── overlays/
+        └── 0001-cve-2024-5678.overlay.toml
+```
+
+**Where `{component}` is allowed.** Only in **project-level** `default-component-config`. At every project-level `overlay-files` entry the placeholder is *required* — plain globs at that scope are rejected because they would apply the same files to every component in the project, which is almost never what you want. At distro, component-group, or per-component scope, `overlay-files` entries are plain globs relative to the declaring config file; `{component}` is rejected there.
+
+**Inheritance with `{component}`.** A project-level `overlay-files` entry containing `{component}` serves two purposes at once:
+
+1. **Discovery.** Every captured directory becomes an implicit component unless there is already an explicit `[components.<name>]` table with the same name.
+2. **Inheritance.** An explicitly-declared component that does not override `overlay-files` inherits the project entry and expands `{component}` with its own name at glob time.
+
+A component that sets its own `overlay-files = [...]` replaces the inherited value; the placeholder pattern no longer applies to that component. Setting `overlay-files = []` disables inheritance entirely for that component.
+
+**Same-scope collisions are a hard error.** If two project-scope `overlay-files` entries both produce the same component name, the resolver fails with a diagnostic listing both entries. Restrict one of the entries or rename one of the directories.
+
+**Shadowing.** An explicit `[components.<name>]` declaration silently supersedes pattern discovery for the same name. `azldev` emits an `slog.Warn` naming the shadowed pattern so you can spot unintended overrides. (The explicit component may still receive the same overlay files via inheritance if it does not override `overlay-files`.)
+
 ## Examples
 
 ### Adding a Build Dependency

@@ -97,6 +97,14 @@ func (f ConfigFile) Validate() error {
 		}
 	}
 
+	// Validate 'overlay-files' placeholder usage per scope. The {component}
+	// placeholder is required in every project-scope default entry (that's how
+	// discovery works) and forbidden at every other scope, where entries are
+	// plain globs.
+	if err := f.validateOverlayFilesByScope(); err != nil {
+		return err
+	}
+
 	// Per-component snapshot timestamps are not allowed. Components inherit
 	// the snapshot from the distro/group default-component-config or the
 	// project's default-distro. Per-component snapshots would create
@@ -105,6 +113,12 @@ func (f ConfigFile) Validate() error {
 
 	// Validate overlay configurations for each component.
 	for componentName, component := range f.Components {
+		if err := validateOverlayFilesEntries(
+			component.OverlayFiles, validateNonProjectOverlayFilesEntry,
+		); err != nil {
+			return fmt.Errorf("invalid 'overlay-files' for component %#q:\n%w", componentName, err)
+		}
+
 		for i, overlay := range component.Overlays {
 			err := overlay.Validate()
 			if err != nil {
@@ -144,6 +158,86 @@ func (f ConfigFile) Validate() error {
 
 		if err := suite.Validate(); err != nil {
 			return fmt.Errorf("invalid test suite %#q:\n%w", suiteName, err)
+		}
+	}
+
+	return nil
+}
+
+// validateOverlayFilesByScope validates the {component} placeholder usage
+// in every 'overlay-files' list across the config file. Project-scope entries
+// go through [validateProjectOverlayFilesEntry] (placeholder required); every
+// other scope goes through [validateNonProjectOverlayFilesEntry] (placeholder
+// forbidden).
+func (f ConfigFile) validateOverlayFilesByScope() error {
+	if f.DefaultComponentConfig != nil {
+		if err := validateOverlayFilesEntries(
+			f.DefaultComponentConfig.OverlayFiles, validateProjectOverlayFilesEntry,
+		); err != nil {
+			return fmt.Errorf("invalid project 'default-component-config':\n%w", err)
+		}
+	}
+
+	for distroName, distro := range f.Distros {
+		for versionName, version := range distro.Versions {
+			if err := validateOverlayFilesEntries(
+				version.DefaultComponentConfig.OverlayFiles, validateNonProjectOverlayFilesEntry,
+			); err != nil {
+				return fmt.Errorf(
+					"invalid 'default-component-config' for distro %#q version %#q:\n%w",
+					distroName, versionName, err,
+				)
+			}
+		}
+	}
+
+	for groupName, group := range f.ComponentGroups {
+		if err := validateOverlayFilesEntries(
+			group.DefaultComponentConfig.OverlayFiles, validateNonProjectOverlayFilesEntry,
+		); err != nil {
+			return fmt.Errorf(
+				"invalid 'default-component-config' for component group %#q:\n%w",
+				groupName, err,
+			)
+		}
+	}
+
+	return nil
+}
+
+// overlayFilesValidator validates a single 'overlay-files' entry against
+// the placeholder rules of a particular config scope.
+type overlayFilesValidator func(entry string) error
+
+// validateProjectOverlayFilesEntry validates entries in the project-level
+// default-component-config. Every entry MUST contain the '{component}'
+// placeholder exactly once as a whole path segment — it's the discovery
+// mechanism.
+func validateProjectOverlayFilesEntry(entry string) error {
+	return validateOverlayFilesPlaceholder(entry)
+}
+
+// validateNonProjectOverlayFilesEntry validates entries in any non-project
+// scope (distro-version default, component-group default, or a
+// [components.X] table). '{component}' is forbidden here — it's only
+// meaningful at project scope.
+func validateNonProjectOverlayFilesEntry(entry string) error {
+	if !hasOverlayFilesPlaceholder(entry) {
+		return nil
+	}
+
+	return fmt.Errorf(
+		"%w: %q is only allowed in project-level 'default-component-config' entries; entry %#q",
+		ErrInvalidOverlayFilesEntry, OverlayFilesComponentPlaceholder, entry,
+	)
+}
+
+// validateOverlayFilesEntries runs validate against each entry in overlayFiles,
+// annotating the returned error with the offending index.
+func validateOverlayFilesEntries(overlayFiles []string, validate overlayFilesValidator) error {
+	for idx, entry := range overlayFiles {
+		if err := validate(entry); err != nil {
+			return fmt.Errorf("'overlay-files'[%d]: %w", idx, err)
 		}
 	}
 
