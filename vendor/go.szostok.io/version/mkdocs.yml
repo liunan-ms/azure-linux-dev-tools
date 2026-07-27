@@ -1,0 +1,110 @@
+site_name: 'Pure DNA of your CLI!'
+site_description: 'Importable Go package to present your CLI version in a classy way. All magic included!'
+site_url: 'https://version.szostok.io/'
+repo_name: 'mszostok/version'
+repo_url: 'https://github.com/mszostok/version'
+copyright: 'Copyright &copy; 2022 Mateusz Szostok'
+
+theme:
+  custom_dir: docs/mkdocs-theme
+  logo: assets/logo.png
+  name: material
+  palette:
+    - scheme: dark
+      media: "(prefers-color-scheme: dark)"
+      primary: orange
+      accent: orange
+      toggle:
+        icon: octicons/moon-16
+        name: Switch to light mode
+    - scheme: default
+      media: "(prefers-color-scheme: light)"
+      primary: white
+      accent: indigo
+      toggle:
+        icon: octicons/sun-24
+        name: Switch to dark mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+  icon:
+    logo: assets/logo.png
+  favicon: assets/logo.png
+  language: en
+  features:
+    - tabs
+    - instant
+    - navigation.instant
+    - navigation.indexes
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - search.share
+    - search.suggest
+    - navigation.tabs
+    - content.tabs.link
+    - content.code.annotate
+
+edit_uri: edit/main/docs/
+
+nav:
+  - Home:
+      - Quick Start: quick-start.md
+      - Runnable Examples: examples.md
+      - Troubleshooting: troubleshooting.md
+      - About: https://version.szostok.io
+  - Get Started:
+      - get-started/index.md
+      - Usage:
+          - get-started/usage/index.md
+          - get-started/usage/cobra.md
+          - get-started/usage/printer.md
+          - get-started/usage/plain.md
+          - get-started/usage/urfave-cli.md
+      - Build (-ldflags):
+          - get-started/build-ldflags/index.md
+          - get-started/build-ldflags/goreleaser.md
+          - get-started/build-ldflags/makefile.md
+          - get-started/build-ldflags/magefile.md
+      - get-started/upgrade-notice.md
+  - Customization:
+      - customization/index.md
+      - Extra fields: customization/extra-fields.md
+      - Pretty Style:
+          - customization/pretty/format.md
+          - customization/pretty/layout.md
+          - customization/pretty/custom-renderer.md
+      - Upgrade notice:
+          - customization/upgrade-notice/index.md
+          - About: customization/upgrade-notice/index.md
+          - customization/upgrade-notice/layout.md
+          - customization/upgrade-notice/custom-renderer.md
+          - "`version check` sub-command": customization/upgrade-notice/check-sub-command.md
+      - Omit unset fields: customization/omit-unset.md
+  - Community:
+      - How package is tested: community/testing.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/mszostok
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/m_szostok
+    - icon: fontawesome/brands/linkedin
+      link: https://linkedin.com/in/mszostok/
+  homepage: https://version.szostok.io
+
+extra_css:
+  -  mkdocs-theme/stylesheets/extra.css
+
+markdown_extensions:
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.details
+  - admonition
+  - mdx_truly_sane_lists
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      use_pygments: true
