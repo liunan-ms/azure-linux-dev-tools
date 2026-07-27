@@ -2,6 +2,7 @@
 
 ## How-To Guides
 
+- [Install from COPR](./how-to/install-from-copr.md) — install `azldev` as an RPM from the stable or dev COPR repository
 - [Create a Project](./how-to/create-project.md) — set up a new Azure Linux project
 - [Add a Component](./how-to/add-component.md) — import or create a new package
 - [Build a Component](./how-to/build-component.md) — build RPMs from component definitions

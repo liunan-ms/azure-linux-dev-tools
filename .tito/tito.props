@@ -1,0 +1,12 @@
+[buildconfig]
+# Standard tito builder: produces a tar.gz from the tagged git commit (the
+# whole repository, since the spec lives at the git root) and builds an SRPM.
+builder = tito.builder.Builder
+# VersionTagger bumps the Version field (X.Y.Z) on `tito tag`. Use
+# `tito tag --keep-version` to (re)tag the version already in the spec, or
+# `tito tag --use-version X.Y.Z` to set an explicit version.
+tagger = tito.tagger.VersionTagger
+# Git tags look like `azldev-X.Y.Z-R`. This matches COPR's tag-webhook format
+# (PKGNAME-VERSION[-RELEASE]) so pushing a tag triggers the stable build.
+tag_format = {component}-{version}-{release}
+changelog_format = %s (%ae)
