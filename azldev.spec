@@ -37,9 +37,12 @@ export CGO_ENABLED=0
 # provides it, otherwise fall back to "now".
 builddate="$(date -u -d "@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y-%m-%dT%H:%M:%SZ)"
 
+# -buildmode=pie: hardened, position-independent executable (Fedora default).
+# -ldflags "-s -w": strip symbol table and DWARF; we ship no -debuginfo package.
 go build \
     -buildvcs=false \
-    -ldflags "-X go.szostok.io/version.version=%{version} -X go.szostok.io/version.buildDate=${builddate}" \
+    -buildmode=pie \
+    -ldflags "-s -w -X go.szostok.io/version.version=%{version} -X go.szostok.io/version.buildDate=${builddate}" \
     -o azldev \
     ./cmd/azldev
 
